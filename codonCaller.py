@@ -3,21 +3,24 @@
 """
 ---DESCRIPTION
 This script calls SNPS from simplified versions of VCF according to a gene ID
--outputs the codon position of the SNP first
--eventually will assign aminoacid change
 
 ---OUTPUT format
 output data should include
--- GENID	gene ID
--- INIEX	begin position of exon
--- ENDEX	end position of exon
--- STRND	strand direction
--- PHASE	phase of exon
--- SCAFF	Scaffold
--- ANSNP	ancient SNP
--- VASNP	variable SNP
--- CDPOS	codon position of snip
--- BPROB	associated base probability
+'01genid' gene id
+'02iniex' initial exome
+'03endex' end of exome
+'04strnd' strand
+'05frame' frame 0,1,2
+'06chrom' chromosome
+'07posit' position
+'08snpid' id
+'09refer' reference base
+'10alter' alternative base
+'11qualy' quality
+'12filtr' filter
+'13infor' information
+'14formt' format
+'15gntyp' genotype
 -- CODON	flanquing sequences**
 -- ANCAA	ancient aminoacid**
 -- VARAA	variable aminoacid**
@@ -67,7 +70,8 @@ for exome in exomes:
     exome_df = pd.read_table(exome, header = None)
 #	B. Read each row to apply
 
-###   probably we need to define here the df for the complete gene
+    col = ['01genid', '02iniex','03endex','04strnd','05frame','06chrom','07posit','08snpid','09refer','10alter','11qualy','12filtr','13infor','14formt','15gntyp']
+    salida_df = pd.DataFrame(np.nan, index=[0], columns=col)
 
     for exon in exome_df.itertuples():
 #		a. drive a masking of the related SCAF file
@@ -84,19 +88,19 @@ for exome in exomes:
             continue
 #		b. create a DataFrame of it      
         temp_df = pd.read_table(StringIO(salida), header = None)
+        temp_df.columns = ['06chrom','07posit','08snpid','09refer','10alter','11qualy','12filtr','13infor','14formt','15gntyp']
         tamano = len(temp_df.index)
 #		c. repeat data from each Exon Row and merge it to the masked Scaffold
         var_df = pd.DataFrame({'01genid' : np.repeat(geneID, tamano),
                                '02iniex' : np.repeat(exon[4], tamano),
                                '03endex' : np.repeat(exon[5], tamano),
                                '04strnd' : np.repeat(exon[7], tamano),
-                               '04frame' : np.repeat(exon[8], tamano)})
+                               '05frame' : np.repeat(exon[8], tamano)})
 #		d. paste data to an output file with the GeneID.VAR
-        result = pd.concat([var_df, temp_df], axis=1)
+        exon_df = pd.concat([var_df, temp_df], axis=1)
 #       this side needs to concatenate column-wise before printing each exon
-        result.to_csv(geneID+'.var',mode = 'a', encoding = 'utf-8')
-        print result.head(10)
-#3. Assign number codon position of subtitutions
-"""
-#4. Ka/Ks ratio
-"""
+        salida_df = salida_df.append(exon_df, ignore_index=True)
+        #print 'salida'
+        #print salida_df.head(5)
+#   final printing
+    salida_df.to_csv(geneID+'.var',mode = 'a', encoding = 'utf-8')
