@@ -3,6 +3,8 @@
 """
 ---DESCRIPTION
 This script calls SNPS from simplified versions of VCF according to a gene ID
+-outputs the codon position of the SNP first
+-eventually will assign aminoacid change
 
 ---OUTPUT format
 output data should include
@@ -51,6 +53,7 @@ import pandas as pd
 from StringIO import StringIO
 from subprocess import check_output
 import numpy as np
+import time
 
 def run(cmd, logfile):
     p = subprocess.Popen(cmd, shell=True, universal_newlines=True, stdout=logfile)
@@ -61,6 +64,11 @@ def run(cmd, logfile):
 # 1. First we read all the files in local directory with the extension .EXOME
 exomes = glob.glob('*.exome')
 paths = glob.glob('*/')
+#out filename
+filename = time.strftime("%d.%m.%Y_%H.%M.%S")
+#out df
+col = ['01genid', '02iniex','03endex','04strnd','05frame','06chrom','07posit','08snpid','09refer','10alter','11qualy','12filtr','13infor','14formt','15gntyp']
+salida_df = pd.DataFrame(np.nan, index=[0], columns=col)
 
 # 2. Second for each file (describing one gene by exons)
 for exome in exomes:
@@ -69,10 +77,6 @@ for exome in exomes:
 #	A. load the file as a DataFrame with pandas
     exome_df = pd.read_table(exome, header = None)
 #	B. Read each row to apply
-
-    col = ['01genid', '02iniex','03endex','04strnd','05frame','06chrom','07posit','08snpid','09refer','10alter','11qualy','12filtr','13infor','14formt','15gntyp']
-    salida_df = pd.DataFrame(np.nan, index=[0], columns=col)
-
     for exon in exome_df.itertuples():
 #		a. drive a masking of the related SCAF file
 # 			$ awk '{ if ($2 >= limites(433041) && $2 <= limites(433055)) print }' DPSCF300328.scaf
@@ -102,5 +106,10 @@ for exome in exomes:
         salida_df = salida_df.append(exon_df, ignore_index=True)
         #print 'salida'
         #print salida_df.head(5)
+#3. Assign number codon position of subtitutions
+salida_df = salida_df.drop(salida_df.head(1).index)
+salida_df['16codon'] = ((abs(salida_df['07posit']-salida_df['02iniex'])+1)-salida_df['05frame'])%3
+#4. Ka/Ks ratio
+
 #   final printing
-    salida_df.to_csv(geneID+'.var',mode = 'a', encoding = 'utf-8')
+salida_df.to_csv('codonCaller_'+filename+'.var',mode = 'a', encoding = 'utf-8')
